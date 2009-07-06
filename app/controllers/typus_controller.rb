@@ -38,7 +38,7 @@ class TypusController < ApplicationController
   end
 
   def sign_in
-
+    redirect_to admin_dashboard_path and return if external_auth_allowed?
     redirect_to admin_sign_up_path and return if Typus.user_class.count.zero?
 
     if request.post?
@@ -122,5 +122,6 @@ private
   def select_layout
     [ 'sign_up', 'sign_in', 'sign_out', 'recover_password', 'reset_password' ].include?(action_name) ? 'typus' : 'admin'
   end
+
 
 end

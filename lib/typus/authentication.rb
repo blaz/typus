@@ -14,7 +14,7 @@ module Typus
     #     session[:typus_user_id] = Typus.user_class.find(:first)
     #
     def require_login
-      if session[:typus_user_id]
+      if session[:typus_user_id] or external_auth_allowed? 
         set_current_user
       else
         back_to = (request.env['REQUEST_URI'] == '/admin') ? nil : request.env['REQUEST_URI']
@@ -29,9 +29,12 @@ module Typus
     #       be signed out from Typus.
     #
     def set_current_user
-
-      @current_user = Typus.user_class.find(session[:typus_user_id])
-
+      if external_auth_allowed?
+        @current_user = ExternalUserFacade.new
+        return
+      else
+        @current_user = Typus.user_class.find(session[:typus_user_id])
+      end
       unless @current_user.respond_to?(:role)
         raise _("Run 'script/generate typus_update_schema_to_01 -f && rake db:migrate' to update database schema.")
       end
@@ -45,10 +48,10 @@ module Typus
         raise _("Typus user has been disabled.")
       end
 
-    rescue Exception => error
-      flash[:notice] = error.message
-      session[:typus_user_id] = nil
-      redirect_to admin_sign_in_path(:back_to => back_to)
+      rescue Exception => error
+        flash[:notice] = error.message
+        session[:typus_user_id] = nil
+        redirect_to admin_sign_in_path(:back_to => back_to)
     end
 
     ##
@@ -58,7 +61,7 @@ module Typus
     #
     def check_if_user_can_perform_action_on_user
 
-      return unless @item.kind_of?(Typus.user_class)
+      #return unless @item.kind_of?(Typus.user_class)
 
       current_user = (@current_user == @item)
 
@@ -109,6 +112,7 @@ module Typus
     # It works on models, so its available on the admin_controller.
     #
     def check_if_user_can_perform_action_on_resource
+      return true if external_auth_allowed?
 
       message = case params[:action]
                 when 'index', 'show'
@@ -139,6 +143,8 @@ module Typus
     # the typus_controller.
     #
     def check_if_user_can_perform_action_on_resource_without_model
+      return true if external_auth_allowed?
+      
       controller = params[:controller].split('/').last
       action = params[:action]
       unless @current_user.can_perform?(controller.camelize, action, { :special => true })
@@ -150,6 +156,20 @@ module Typus
       end
     end
 
+    # methodology borrowed from admin_data by neerajdotname, http://github.com/neerajdotname/admin_data/tree/master
+    def external_auth_allowed?
+      begin
+        output = Object.const_get('TYPUS_ADMIN_AUTHORIZATION')
+        Rails.logger.info("Authentication for TYPUS_ADMIN_AUTHORIZATION was called and the result was #{output}")
+        return false unless output
+      rescue NameError => e
+        # TYPUS_ADMIN_AUTHORIZATION is not declared, so extenal auth is not enabled
+        return false
+      end
+      true
+    end
+    
   end
+
 
 end

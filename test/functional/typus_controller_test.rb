@@ -5,6 +5,7 @@ class TypusControllerTest < ActionController::TestCase
   def setup
     Typus::Configuration.options[:recover_password] = true
     Typus::Configuration.options[:app_name] = 'whatistypus.com'
+    Object.module_eval { remove_const(:TYPUS_ADMIN_AUTHORIZATION) } if defined?(TYPUS_ADMIN_AUTHORIZATION)        
   end
 
   def test_should_render_login
@@ -15,11 +16,26 @@ class TypusControllerTest < ActionController::TestCase
 
   def test_should_sign_in_and_redirect_to_dashboard
     typus_user = typus_users(:admin)
-    post :sign_in, { :user => { :email => typus_user.email, 
+    post :sign_in, { :user => { :email => typus_user.email,
                                 :password => '12345678' } }
     assert_equal typus_user.id, @request.session[:typus_user_id]
     assert_response :redirect
     assert_redirected_to admin_dashboard_path
+  end
+
+  def test_should_sign_in_if_external_auth_defined
+    Object.const_set("TYPUS_ADMIN_AUTHORIZATION", Proc.new { |controller| return true })
+    post :sign_in, { :user => { :email => 'unexisting' } }
+    assert_response :redirect
+    assert_redirected_to admin_dashboard_path
+    Object.module_eval { remove_const(:TYPUS_ADMIN_AUTHORIZATION) }
+  end
+
+  def test_should_show_dashboard_if_external_auth_defined
+    Object.const_set("TYPUS_ADMIN_AUTHORIZATION", Proc.new { |controller| return true })
+    get :dashboard
+    assert_response :success
+    Object.module_eval { remove_const(:TYPUS_ADMIN_AUTHORIZATION) }
   end
 
   def test_should_return_message_when_sign_in_fails
