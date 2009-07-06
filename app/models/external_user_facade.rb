@@ -1,6 +1,6 @@
 class ExternalUserFacade
   def resources
-    {"TypusUser"=>"create, read, update, delete"}    
+    Typus::Configuration.roles[role].compact
   end
 
   def name
