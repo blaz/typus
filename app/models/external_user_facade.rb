@@ -19,6 +19,10 @@ class ExternalUserFacade
     0
   end
 
+  def is_root?
+    true
+  end
+
   def can_perform?(resource, action, options = {})
     true
   end

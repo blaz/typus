@@ -27,6 +27,10 @@ class ExternalUserFacadeTest < ActiveSupport::TestCase
     assert_equal @user.id, 0
   end
 
+  def test_external_user_facade_should_be_root
+    assert_equal @user.is_root?, true
+  end
+
   def test_external_user_facade_can_perform_any_action
     assert_equal @user.can_perform?("any", "action"), true
   end
